@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="spring.mvc.pj_jy_shop.dao.AdminDAO">
+
+	<!-- 주문목록 갯수 구하기 -->
+  	<select id="orderCnt" resultType="int">
+  		SELECT COUNT(*) as cnt FROM mvc_order_tbl
+  	</select>
+
+	<!-- 주문목록 불러오기 -->
+  	<select id="orderList" parameterType="java.util.Map" resultType="spring.mvc.pj_jy_shop.dto.OrderDTO">
+  		SELECT * 
+          FROM (SELECT A.*, rownum as rn 
+                  FROM (SELECT o.odNo, o.pdNo, o.id, p.pdImg, p.pdName, o.odQuantity, o.odStatus, p.pdPrice, p.pdSize, p.pdColor, o.regDate 
+                          FROM mvc_order_tbl o , mvc_product_tbl p 
+                    	 WHERE o.pdNo = p.pdNo 
+                   		 ORDER BY o.odNo DESC) A ) 
+		 WHERE rn BETWEEN #{start} AND #{end}
+  	</select>
+  	
+  	<!-- 주문 검색 -->
+  	<select id="orderSearch" parameterType="java.util.Map" resultType="spring.mvc.pj_jy_shop.dto.OrderDTO">
+  		SELECT o.odNo, o.pdNo, o.id, p.pdImg, p.pdName, o.odQuantity, o.odStatus, p.pdPrice, p.pdSize, p.pdColor, o.regDate 
+		  FROM mvc_order_tbl o, mvc_product_tbl p 
+ 		 WHERE o.pdNo = p.pdNo
+ 		   AND ${col} like #{keyword}
+		 ORDER BY o.regDate DESC
+  	</select>
+  	
+  	<!-- 주문, 환불 신청 승인 -->
+  	<update id="orderOkay" parameterType="java.util.Map">
+	  	UPDATE mvc_order_tbl 
+	  	   SET odStatus=#{status} 
+	  	 WHERE odNo=#{odNo}
+  	</update>
+  	
+  	<!-- 주문 승인 시 재고 감소 -->
+  	<update id="quantityMinus" parameterType="java.util.Map">
+	  	UPDATE mvc_product_tbl 
+	  	   SET pdQuantity=((SELECT pdQuantity 
+	  	                      FROM mvc_product_tbl 
+	  	                     WHERE pdNo=#{pdNo}) - #{quantity})
+	  	 WHERE pdNo = #{pdNo}
+  	</update>
+  	
+  	<!-- 환불 승인 시 재고 증가 -->
+  	<update id="quantityPlus" parameterType="java.util.Map">
+	  	UPDATE mvc_product_tbl 
+	  	   SET pdQuantity=((SELECT pdQuantity 
+	  	                      FROM mvc_product_tbl 
+	  	                     WHERE pdNo=#{pdNo}) + #{quantity})
+	  	 WHERE pdNo = #{pdNo}
+  	</update>
+
+  	<!-- 주문거절 사유 입력 -->
+  	<update id="inputOrderRefuse" parameterType="java.util.Map">
+	  	UPDATE mvc_order_tbl 
+	  	   SET odStatus=#{status}, orderRefuseReason=#{reason} 
+	  	 WHERE odNo=#{odNo}
+  	</update>
+
+	<!-- 회원 수 구하기 -->
+  	<select id="memberCnt" resultType="int">
+  		SELECT COUNT(*) as cnt FROM mvc_customer_tbl
+  	</select>
+  	
+  	<!-- 회원 목록 -->
+  	<select id="memberList" parameterType="java.util.Map" resultType="spring.mvc.pj_jy_shop.dto.CustomerDTO">
+  		SELECT * 
+  		  FROM (SELECT A.*, rownum as rn 
+  		          FROM (SELECT id, password, name, birthday, address, hp, email, status, point, regDate, byeDate 
+  		                  FROM mvc_customer_tbl 
+  		                 ORDER BY regDate DESC) 
+  		               A )
+  		  WHERE rn BETWEEN #{start} AND #{end}
+  	</select>
+
+  	<!-- 회원 상태 변경 -->
+  	<update id="memberStatus" parameterType="java.util.Map">
+	  	UPDATE mvc_customer_tbl 
+           SET status=#{status}, sReason=#{reason} 
+         WHERE id=#{id}
+  	</update>
+  	
+ 	<!-- 회원 상태 변경 사유 보기 -->
+  	<select id="readReason" parameterType="String" resultType="String">
+  		SELECT sReason FROM mvc_customer_tbl WHERE id=#{id}
+  	</select>
+  	
+  	<!-- 회원 검색 -->
+  	<select id="memberSearch" parameterType="java.util.Map" resultType="spring.mvc.pj_jy_shop.dto.CustomerDTO">
+  		SELECT id, password, name, birthday, address, hp, email, status, point, regDate, byeDate 
+          FROM mvc_customer_tbl 
+		 WHERE ${col} like #{keyword} 
+		 ORDER BY regDate DESC
+  	</select>
+  	
+  	<!-- 환불 거절 사유 입력 -->
+  	<update id="inputRefundRefuse" parameterType="java.util.Map">
+	  	UPDATE mvc_order_tbl 
+		   SET odStatus=#{status}, refundRefuseReason=#{reason} 
+		 WHERE odNo=#{odNo}
+  	</update>
+  	
+  	<!-- 결산목록 갯수 구하기 -->
+  	<select id="incomeCnt" resultType="int">
+  		SELECT COUNT(*) as cnt FROM mvc_order_tbl WHERE odStatus like '주문승인' or odStatus like '환불거절' or odStatus like '환불신청'
+  	</select>
+  	
+	<!-- 결산목록 불러오기 -->
+  	<select id="income" parameterType="java.util.Map" resultType="spring.mvc.pj_jy_shop.dto.OrderDTO">
+  		SELECT * 
+          FROM (SELECT A.*, rownum as rn 
+                  FROM (SELECT o.odNo, o.pdNo, o.id, p.pdImg, p.pdName, o.odQuantity, o.odStatus, p.pdPrice, p.pdSize, p.pdColor, o.regDate 
+                          FROM mvc_order_tbl o , mvc_product_tbl p 
+                    	 WHERE o.pdNo = p.pdNo 
+                    	   AND (o.odStatus like '주문승인' OR o.odStatus like '환불거절' OR o.odStatus like '환불신청')
+                   		 ORDER BY o.odNo DESC) A ) 
+		 WHERE rn BETWEEN #{start} AND #{end}
+  	</select>  	
+
+  	<!-- 결산검색(기간) -->
+  	<select id="incomeSearch" parameterType="String" resultType="spring.mvc.pj_jy_shop.dto.OrderDTO">
+  		SELECT o.odNo, o.pdNo, o.id, p.pdImg, p.pdName, o.odQuantity, o.odStatus, p.pdPrice, p.pdSize, p.pdColor, o.regDate 
+		  FROM mvc_order_tbl o, mvc_product_tbl p 
+  		 WHERE o.pdNo = p.pdNo 
+  		   AND o.regDate like #{col}
+  		   AND (o.odStatus like '주문승인' OR o.odStatus like '환불거절' OR o.odStatus like '환불신청')
+		 ORDER BY o.regDate DESC
+  	</select>
+
+	<!-- 결산그래프 -->
+	<select id="incomeGraph" resultType="spring.mvc.pj_jy_shop.dto.totalDTO">
+		SELECT * FROM category_total
+	</select>
+	
+</mapper>
