@@ -35,5 +35,9 @@ public class HomeController {
 		
 		return "test";
 	}
+	@RequestMapping("test.do")
+	public String test() {
+		return "sdfdf";
+	}
 	
 }
